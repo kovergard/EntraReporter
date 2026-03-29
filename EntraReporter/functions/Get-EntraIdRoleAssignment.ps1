@@ -292,6 +292,7 @@ function Get-EntraIdRoleAssignment {
 
 		# Emit a single entry for the combination of principal and user with the resolved effective assignment window and state. 
 		[PSCustomObject]@{
+			PSTypeName           = 'EntraReporter.RoleAssignment'
 			RoleId               = $RoleId
 			RoleName             = $RoleName
 			PrincipalId          = $PrincipalId
@@ -376,6 +377,10 @@ function Get-EntraIdRoleAssignment {
 		$principal = $Schedule.principal
 
 		if ($principal.'@odata.type' -eq '#microsoft.graph.user') {
+			#			if ($Schedule.directoryScopeId -ne '/') {
+			#				$Schedule | ConvertTo-Json -Depth 4 | Write-Verbose
+			#				throw 'STOP'
+			#}
 			$roleEntrySplat = @{
 				RoleId               = $Schedule.roleDefinitionId
 				RoleName             = $Schedule.roleDefinition.displayName
@@ -424,6 +429,10 @@ function Get-EntraIdRoleAssignment {
 
 	$timer = [Diagnostics.Stopwatch]::StartNew()
 	$activityName = 'Fetching Entra ID role assignments'
+
+	Invoke-MgGraphRequest -Method GET -Uri 'v1.0/directory/administrativeUnits' -Verbose:$false | Select-Object -ExpandProperty value 
+
+	throw 'STOP'
 
 	# Fetch all role schedules, assigned and eligible.
 	Write-Progress -Activity $activityName -Status 'Fetching assigned role schedules' -PercentComplete 20
