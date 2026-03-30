@@ -211,9 +211,10 @@ function Get-EntraIdRoleAssignment {
 	#region MAIN
 
 	#
-	## Connect-mgGraph -Scopes 'RoleManagement.Read.Directory','RoleEligibilitySchedule.Read.Directory','PrivilegedEligibilitySchedule.Read.AzureADGroup', 'PrivilegedAssignmentSchedule.Read.AzureADGroup', 'GroupMember.Read.All'
+	## Connect-MgGraph -Scopes 'RoleManagement.Read.Directory','RoleEligibilitySchedule.Read.Directory','PrivilegedEligibilitySchedule.Read.AzureADGroup', 'PrivilegedAssignmentSchedule.Read.AzureADGroup', 'GroupMember.Read.All'
+	
 	# Current:
-	## Connect-mgGraph -Scopes 'RoleEligibilitySchedule.Read.Directory','PrivilegedEligibilitySchedule.Read.AzureADGroup', 'PrivilegedAssignmentSchedule.Read.AzureADGroup'
+	## Connect-MgGraph -Scopes 'RoleEligibilitySchedule.Read.Directory','PrivilegedEligibilitySchedule.Read.AzureADGroup', 'PrivilegedAssignmentSchedule.Read.AzureADGroup'
 	#
 
 	# Always stop on errors to avoid emitting incomplete data. Errors should be handled at the command level to allow for more granular error handling (e.g. skipping individual entries that fail to resolve rather than failing the entire command).
@@ -227,10 +228,6 @@ function Get-EntraIdRoleAssignment {
 
 	$timer = [Diagnostics.Stopwatch]::StartNew()
 	$activityName = 'Fetching Entra ID role assignments'
-
-	Invoke-MgGraphRequest -Method GET -Uri 'v1.0/directory/administrativeUnits' -Verbose:$false | Select-Object -ExpandProperty value 
-
-	throw 'STOP'
 
 	# Fetch all role schedules, assigned and eligible.
 	Write-Progress -Activity $activityName -Status 'Fetching assigned role schedules' -PercentComplete 20
@@ -248,6 +245,20 @@ function Get-EntraIdRoleAssignment {
 		$roleAssignmentSchedules = $roleAssignmentSchedules | Where-Object { $_.roleDefinition.displayName -in $RoleName }
 		$roleEligibilitySchedules = $roleEligibilitySchedules | Where-Object { $_.roleDefinition.displayName -in $RoleName }
 	}
+
+	# If any scopes are used in the role schedules (i.e. scope is not just the entire directory), fetch information about the scopes to allow for better reporting (e.g. resolving administrative unit names). 
+	$scopeIds = @()
+	$scopeIds += $roleAssignmentSchedules | Select-Object -ExpandProperty directoryScopeId
+	$scopeIds += $roleEligibilitySchedules | Select-Object -ExpandProperty directoryScopeId
+	$scopeIds = $scopeIds | Select-Object -Unique | Where-Object { $_ -ne '/' }
+	if ($scopeIds.Count -gt 0) {
+		Write-Progress -Activity $activityName -Status 'Fetching scope information' -PercentComplete 50
+		$scopeIds | ConvertTo-Json -Depth 5 | Write-Verbose
+		throw 'STOP'
+	}
+
+	Invoke-MgGraphRequest -Method GET -Uri 'v1.0/directory/administrativeUnits' -Verbose:$false | Select-Object -ExpandProperty value 
+	throw 'STOP'
 
 	# Extract unique group IDs from all role schedules for prefetching group schedule information in bulk to reduce number of API calls later on.
 	$groupIds = @()
