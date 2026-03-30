@@ -13,210 +13,6 @@ function Get-EntraIdRoleAssignment {
 
 	# TODO: Support tenants with without PIM / Privileged Access enabled (currently the command relies on fetching role assignments via the privileged access API, which only returns results for tenants with PIM / Privileged Access enabled)
 
-	#region Configuiration
-
-	# TODO: Move to module initialization when prototyping is done
-
-	$ErrorActionPreference = 'Stop'     # Always stop on errors
-
-	#endregion
-
-	#region Private functions
-	# TODO: Move these to separate files when prototyping is done
-
-
-	function Split-ArrayIntoChunks {
-		[CmdletBinding()]
-		param(
-			[Parameter(Mandatory)]
-			[ValidateNotNullOrEmpty()]
-			[object[]]$InputObject,
-
-			[ValidateRange(1, [int]::MaxValue)]
-			[int]$ChunkSize = 20
-		)
-
-		$items = @($InputObject)
-		# Always return a collection object
-		$result = New-Object System.Collections.Generic.List[object[]]
-
-		if ($items.Count -gt 0) {
-			for ($i = 0; $i -lt $items.Count; $i += $ChunkSize) {
-				$end = [Math]::Min($i + $ChunkSize - 1, $items.Count - 1)
-				[void]$result.Add(@($items[$i..$end]))   # ensure each chunk is an object[]
-			}
-		}
-
-		# Emit the *collection* as a single object so callers get one wrapper
-		, $result
-	}
-
-	function Invoke-GraphBatch {
-		[CmdletBinding()]
-		param(
-			[Parameter(Mandatory)]
-			[hashtable[]]$Requests,
-
-			[Parameter()]
-			[string]$GraphVersion = 'v1.0',
-
-			[Parameter()]
-			[switch]$ThrowOnAnyError
-		)
-
-		$uri = "$GraphVersion/`$batch"
-		$body = @{ requests = $Requests }
-
-		$resp = Invoke-MgGraphRequest -Method POST -Uri $uri -Body $body -Verbose:$false
-
-		if ($ThrowOnAnyError) {
-			$errors = $resp.responses | Where-Object { $_.status -ge 400 }
-			if ($errors) {
-				$codes = ($errors | ForEach-Object { "$($_.id):$($_.status)" }) -join ', '
-				throw "One or more batch requests failed: $codes"
-			}
-		}
-		return $resp
-	}
-
-	# Robust pagination helper
-	function Invoke-GraphPaged {
-		param(
-			[Parameter(Mandatory)][string] $Uri
-		)
-		$items = @()
-		$next = $Uri
-		while ($next) {
-			$resp = Invoke-MgGraphRequest -Method GET -Uri $next -ErrorAction Stop
-			if ($resp.value) { $items += $resp.value }
-			$next = $resp.'@odata.nextLink'
-		}
-		return , $items
-	}
-
-	#endregion
-
-	#region Public functions
-	# TODO: Move these to separate files when prototyping is done
-
-	function Get-EntraIdGroupScheduleBatch {
-		param(
-			[Parameter(Mandatory = $true)]
-			[string[]]
-			$GroupId,
-
-			[Parameter(Mandatory = $true)]
-			[ValidateSet('Assigned', 'Eligible')]
-			[string]
-			$State
-		)
-
-		switch ($State) {
-			'Assigned' {
-				$urlTemplate = "/identityGovernance/privilegedAccess/group/assignmentSchedules?`$filter=groupId eq '{Id}'&`$expand=principal"
-			}
-			'Eligible' {
-				$urlTemplate = "/identityGovernance/privilegedAccess/group/eligibilitySchedules?`$filter=groupId eq '{Id}'&`$expand=principal"
-			}
-		}
-	
-		# Split the GroupId array into chunks of 20
-		$chunks = Split-ArrayIntoChunks -InputObject $GroupId -ChunkSize 20
-
-		$allResponses = foreach ($chunk in $chunks) {
-			try {
-				$requests = foreach ($id in $chunk) {
-					@{
-						id     = $id
-						method = 'GET'
-						url    = $urlTemplate.Replace('{Id}', $id)
-					}
-				}
-				Invoke-GraphBatch -Requests $requests -ThrowOnAnyError
-			}
-			catch {
-				Write-Warning ("Failed to process chunk of group IDs '{0}': {1}" -f ($chunk -join ', '), $_.Exception.Message)
-			}
-		}
-
-		$allResponses.responses | ForEach-Object { $_.body.value }
-	}
-
-	function Get-EntraIdLevel {
-		[CmdletBinding()]
-		param(
-			# If set, include diagnostic details (enabled/assigned counts and SKU part numbers).
-			[switch] $IncludeDetails
-		)
-
-		# Ensure we're using v1.0 for stability (this affects URL only, not the module profile).
-		$skus = Invoke-GraphPaged -Uri 'https://graph.microsoft.com/v1.0/subscribedSkus' -Verbose:$false
-
-		# Defensive: if tenant has no SKUs (rare), treat as Free
-		if (-not $skus -or $skus.Count -eq 0) {
-			$result = [ordered]@{
-				Level         = 'Free'
-				IsP1Available = $false
-				IsP2Available = $false
-			}
-			if ($IncludeDetails) {
-				$result.P1EnabledCount = 0
-				$result.P2EnabledCount = 0
-				$result.P1AssignedCount = 0
-				$result.P2AssignedCount = 0
-				$result.P1SkuPartNumbers = @()
-				$result.P2SkuPartNumbers = @()
-			}
-			return [PSCustomObject]$result
-		}
-
-		# Filter SKUs by service plans (provisioned and active)
-		$p1Skus = $skus | Where-Object {
-			$_.servicePlans | Where-Object {
-				$_.servicePlanName -eq 'AAD_PREMIUM' -and $_.provisioningStatus -eq 'Success'
-			}
-		}
-		$p2Skus = $skus | Where-Object {
-			$_.servicePlans | Where-Object {
-				$_.servicePlanName -eq 'AAD_PREMIUM_P2' -and $_.provisioningStatus -eq 'Success'
-			}
-		}
-
-		# Enabled capacity (what you own)
-		$p1Enabled = ($p1Skus | ForEach-Object { $_.prepaidUnits.enabled } | Measure-Object -Sum).Sum
-		$p2Enabled = ($p2Skus | ForEach-Object { $_.prepaidUnits.enabled } | Measure-Object -Sum).Sum
-
-		# Assigned units (how many are currently consumed)
-		$p1Assigned = ($p1Skus | ForEach-Object { $_.consumedUnits } | Measure-Object -Sum).Sum
-		$p2Assigned = ($p2Skus | ForEach-Object { $_.consumedUnits } | Measure-Object -Sum).Sum
-
-		# Determine the “portal-equivalent” level
-		$level = if ($p2Enabled -gt 0) { 'P2' }
-		elseif ($p1Enabled -gt 0) { 'P1' }
-		else { 'Free' }
-
-		$result = [ordered]@{
-			Level         = $level
-			IsP1Available = ($p1Enabled -gt 0)
-			IsP2Available = ($p2Enabled -gt 0)
-		}
-
-		if ($IncludeDetails) {
-			$result.P1EnabledCount = [int]($p1Enabled | ForEach-Object { $_ } )
-			$result.P2EnabledCount = [int]($p2Enabled | ForEach-Object { $_ } )
-			$result.P1AssignedCount = [int]($p1Assigned | ForEach-Object { $_ } )
-			$result.P2AssignedCount = [int]($p2Assigned | ForEach-Object { $_ } )
-			$result.P1SkuPartNumbers = $p1Skus.skuPartNumber | Sort-Object -Unique
-			$result.P2SkuPartNumbers = $p2Skus.skuPartNumber | Sort-Object -Unique
-		}
-
-		[PSCustomObject]$result
-	}
-
-
-	#endregion
-
-
 	#region Internal functions 
 
 	function Resolve-AssignmentWindow {
@@ -410,7 +206,7 @@ function Get-EntraIdRoleAssignment {
 		}
 	}
 
-	#endregion Helper Functions
+	#endregion Internal Functions
 
 	#region MAIN
 
@@ -420,12 +216,14 @@ function Get-EntraIdRoleAssignment {
 	## Connect-mgGraph -Scopes 'RoleEligibilitySchedule.Read.Directory','PrivilegedEligibilitySchedule.Read.AzureADGroup', 'PrivilegedAssignmentSchedule.Read.AzureADGroup'
 	#
 
+	# Always stop on errors to avoid emitting incomplete data. Errors should be handled at the command level to allow for more granular error handling (e.g. skipping individual entries that fail to resolve rather than failing the entire command).
+	$ErrorActionPreference = 'Stop'     
+
 	if (!(Test-GraphConnection)) {
 		throw 'No active connection to Microsoft Graph. Run Connect-MgGraph to sign in and then retry.'
 	}
 
 	Get-EntraIdLevel -IncludeDetails | ConvertTo-Json -Depth 5 | Write-Verbose
-
 
 	$timer = [Diagnostics.Stopwatch]::StartNew()
 	$activityName = 'Fetching Entra ID role assignments'
@@ -444,8 +242,6 @@ function Get-EntraIdRoleAssignment {
 	# TODO: Test for nested groups???
 
 	# TODO: Test with scopes other than the directory (e.g. administrative units)
-
-	# TODO: Test with Azure RBAC roles (if possible - not sure if these are returned by the API when listing directory role assignments?)
 
 	# If Rolename has been specified, filter out any assigments not in the specified role(s).
 	if ($RoleName) {
