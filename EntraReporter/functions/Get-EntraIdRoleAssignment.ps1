@@ -142,7 +142,7 @@ function Get-EntraIdRoleAssignment {
 				PrincipalId          = $Schedule.principal.id
 				PrincipalDisplayName = $Schedule.principal.displayName
 				AssignmentType       = 'Group'
-				Scope                = $Schedule.directoryScopeId
+				Scope                = $administrativeUnits | Where-Object { $_.directoryScopeId -eq $Schedule.directoryScopeId } | Select-Object -ExpandProperty displayName
 				PrincipalState       = $GroupState
 				PrincipalStartTime   = if ($Schedule.scheduleInfo.expiration.endDateTime) { $Schedule.scheduleInfo.startDateTime } else { $null }
 				PrincipalEndTime     = if ($Schedule.scheduleInfo.expiration.endDateTime) { $Schedule.scheduleInfo.expiration.endDateTime } else { $null }
@@ -173,17 +173,13 @@ function Get-EntraIdRoleAssignment {
 		$principal = $Schedule.principal
 
 		if ($principal.'@odata.type' -eq '#microsoft.graph.user') {
-			#			if ($Schedule.directoryScopeId -ne '/') {
-			#				$Schedule | ConvertTo-Json -Depth 4 | Write-Verbose
-			#				throw 'STOP'
-			#}
 			$roleEntrySplat = @{
 				RoleId               = $Schedule.roleDefinitionId
 				RoleName             = $Schedule.roleDefinition.displayName
 				PrincipalId          = $Schedule.principal.id
 				PrincipalDisplayName = $Schedule.principal.displayName
 				AssignmentType       = 'User'
-				Scope                = $Schedule.directoryScopeId
+				Scope                = $administrativeUnits | Where-Object { $_.directoryScopeId -eq $Schedule.directoryScopeId } | Select-Object -ExpandProperty displayName
 				PrincipalState       = $State
 				PrincipalStartTime   = if ($Schedule.scheduleInfo.expiration.endDateTime) { $Schedule.scheduleInfo.startDateTime } else { $null }
 				PrincipalEndTime     = if ($Schedule.scheduleInfo.expiration.endDateTime) { $Schedule.scheduleInfo.expiration.endDateTime } else { $null }
@@ -235,10 +231,7 @@ function Get-EntraIdRoleAssignment {
 	Write-Progress -Activity $activityName -Status 'Fetching eligible role schedules' -PercentComplete 40
 	$roleEligibilitySchedules = Invoke-MgGraphRequest -Method GET -Uri "v1.0/roleManagement/directory/roleEligibilitySchedules?`$expand=principal,roleDefinition" -Verbose:$false | Select-Object -ExpandProperty value
 
-
 	# TODO: Test for nested groups???
-
-	# TODO: Test with scopes other than the directory (e.g. administrative units)
 
 	# If Rolename has been specified, filter out any assigments not in the specified role(s).
 	if ($RoleName) {
@@ -247,18 +240,12 @@ function Get-EntraIdRoleAssignment {
 	}
 
 	# If any scopes are used in the role schedules (i.e. scope is not just the entire directory), fetch information about the scopes to allow for better reporting (e.g. resolving administrative unit names). 
+	Write-Progress -Activity $activityName -Status 'Fetching scope information' -PercentComplete 60
 	$scopeIds = @()
 	$scopeIds += $roleAssignmentSchedules | Select-Object -ExpandProperty directoryScopeId
 	$scopeIds += $roleEligibilitySchedules | Select-Object -ExpandProperty directoryScopeId
-	$scopeIds = $scopeIds | Select-Object -Unique | Where-Object { $_ -ne '/' }
-	if ($scopeIds.Count -gt 0) {
-		Write-Progress -Activity $activityName -Status 'Fetching scope information' -PercentComplete 50
-		$scopeIds | ConvertTo-Json -Depth 5 | Write-Verbose
-		throw 'STOP'
-	}
-
-	Invoke-MgGraphRequest -Method GET -Uri 'v1.0/directory/administrativeUnits' -Verbose:$false | Select-Object -ExpandProperty value 
-	throw 'STOP'
+	$scopeIds = $scopeIds | Where-Object { $_.id -ne '/' } | Select-Object -Unique
+	$script:administrativeUnits = Get-AdministrativeUnit
 
 	# Extract unique group IDs from all role schedules for prefetching group schedule information in bulk to reduce number of API calls later on.
 	$groupIds = @()
@@ -267,7 +254,7 @@ function Get-EntraIdRoleAssignment {
 	$groupIds = $groupIds | Select-Object -Unique
 
 	# Prefetch group schedules for all groups used groups
-	Write-Progress -Activity $activityName -Status 'Fetching assigned group schedules' -PercentComplete 60
+	Write-Progress -Activity $activityName -Status 'Fetching assigned group schedules' -PercentComplete 65
 	$script:groupAssignmentSchedules = Get-EntraIdGroupScheduleBatch -GroupId $groupIds -State 'Assigned' 
 	Write-Progress -Activity $activityName -Status 'Fetching eligible group schedules' -PercentComplete 80
 	$script:groupEligibilitySchedules = Get-EntraIdGroupScheduleBatch -GroupId $groupIds -State 'Eligible' 
