@@ -16,15 +16,16 @@
 	A list of object arrays, where each array is a chunk from the original input.
 
 	.EXAMPLE
-	Split-ArrayIntoChunks -InputObject @(1,2,3,4,5) -ChunkSize 2
+	Split-ArrayIntoChunk -InputObject @(1,2,3,4,5) -ChunkSize 2
 	
 	Returns chunks: @(1,2), @(3,4), @(5)
 
 	.NOTES
 	Used by EntraReporter helpers for batching Graph requests.
 #>
-function Split-ArrayIntoChunks {
+function Split-ArrayIntoChunk {
 	[CmdletBinding()]
+	[OutputType([System.Array])]
 	param(
 		[Parameter(Mandatory)]
 		[ValidateNotNullOrEmpty()]
