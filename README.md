@@ -1,36 +1,12 @@
 ﻿# EntraReporter
 
-ADD DESCRIPTION HERE
+EntraReporter is a PowerShell module designed to report on information from Entra ID (Azure Active Directory), including role assignments and eligibility schedules. It leverages Microsoft Graph API to provide detailed insights into privileged access management (PAM) configurations, including role assignments for users, groups, and service principals. The module is particularly useful for compliance auditing, security reviews, and administrative reporting.
 
-## Project Setup
-
-> TODO: Delete this section from the readme, once you are done with it
-
-> Setup step 1: Configuring the project
-
-In the root folder - right beside this readme file - you can find a `config.psd1` file.
-You can find and adjust settings there, such as whether you want the version automatically updated or the `FunctionsToExport` be auto-generated.
-
-Each setting has a description, explaining what it does.
-If this is your first module project, you may want to enable `ExportFunction`, to have one less thing to deal with.
-
-> What you need to know & update
-
-Essentially, your module is ready to roll, just needing your content, so these are the things you need to update:
-
-```text
-readme.md
-EntraReporter\EntraReporter.psd1
-EntraReporter\functions
-EntraReporter\internal\functions
-EntraReporter\internal\scripts
-```
-
-+ `readme.md`: Add some description and examples on how to use your project, then delete the "Project Setup" section, which is for you only.
-+ `EntraReporter.psd1`: The module manifest. You may need to register your public functions here, maintain the version number or declare dependencies your module uses.
-+ `functions`: The folder your public functions go. That is, functions your users should have access to. One function per file, file should have the same name as the function.
-+ `internal\functions`: The folder where your internal functions should be placed, that users should not directly use. One function per file, file should have the same name as the function.
-+ `internal\scripts`: The folder where scripts go, that are run on module import only. Use for declaring module-wide variables, do some cleanup, or whatever else needs to happen only once per session.
+Key features include:
+- Comprehensive role assignment reporting with effective date ranges, with support for group-based role assignments and eligibility
+- License level detection for Entra ID tiers
+- Batch processing for efficient API calls
+- Detailed output with customizable formatting
 
 ## Installation
 
@@ -40,13 +16,84 @@ To install the module, run:
 Install-Module -Name 'EntraReporter' -Scope CurrentUser
 ```
 
-Alternatively, if you have any trouble getting modules installed, this might work instead:
+Alternatively, clone the repository and import the module manually:
 
 ```powershell
-Invoke-WebRequest 'https://raw.githubusercontent.com/PowershellFrameworkCollective/PSFramework.NuGet/refs/heads/master/bootstrap.ps1' -UseBasicParsing | Invoke-Expression
-Install-PSFModule -Name 'EntraReporter'
+git clone https://github.com/kovergard/EntraReporter.git
+cd EntraReporter
+Import-Module .\EntraReporter\EntraReporter.psd1
 ```
 
-## Profit
+## Functions
 
-ADD EXAMPLES HERE
+### Get-EntraIdRoleAssignment
+
+**Description:**  
+This cmdlet queries Entra ID role assignments and eligibility information for users, groups, and service principals. The function queries Microsoft Graph Privileged Identity Management (PIM) APIs to consolidate role schedules into a unified report, resolving group memberships and calculating effective assignment windows.
+
+**Parameters:**
+- `RoleName` (optional): Filter by one or more role names (e.g., 'Global Administrator', 'User Administrator').
+
+**Output:**  
+Returns a collection of PSCustomObjects with properties including RoleId, RoleName, PrincipalId, AssignmentType, Scope, EffectiveState, EffectiveStartTime, EffectiveEndTime, and more.
+
+**Examples:**
+
+1. **Retrieve all role assignments and eligibilities:**
+   ```powershell
+   Get-EntraIdRoleAssignment
+   ```
+   This command fetches all role assignments in the tenant, and shows the most important properties.  
+   ![image](Images/Get-EntraIdRoleAssignment.png)
+
+2. **Filter by specific role with all details:**
+   ```powershell
+   Get-EntraIdRoleAssignment -RoleName "User Administrator" | Format-List
+   ```
+   This retrieves assignments only for the 'User Administrator' role, and show all returned properties.
+   ![image](Images/Get-EntraIdRoleAssignment-Format-List.png)
+
+**Notes:**  
+Requires Entra P2 license level. Ensure you have connected to Microsoft Graph with appropriate scopes (e.g., `Connect-MgGraph -Scopes 'RoleEligibilitySchedule.Read.Directory','PrivilegedEligibilitySchedule.Read.AzureADGroup', 'PrivilegedAssignmentSchedule.Read.AzureADGroup'`).
+
+### Get-EntraIdLevel
+
+**Description:**  
+Determines the Entra ID license level (Free, P1, or P2) for the connected tenant by querying subscribed SKUs via Microsoft Graph.
+
+**Parameters:**
+- `IncludeDetails` (switch): Includes detailed license counts and SKU part numbers.
+
+**Output:**  
+PSCustomObject with Level, IsP1Available, IsP2Available, and optionally detailed counts.
+
+**Example:**
+```powershell
+Get-EntraIdLevel -IncludeDetails
+```
+Output example:
+```
+Level         : P2
+IsP1Available : True
+IsP2Available : True
+P1EnabledCount: 50
+P2EnabledCount: 25
+P1AssignedCount: 45
+P2AssignedCount: 20
+P1SkuPartNumbers: {AAD_PREMIUM}
+P2SkuPartNumbers: {AAD_PREMIUM_P2}
+```
+
+### Other Functions
+
+- **Get-EntraIdGroupScheduleBatch:** Retrieves group membership schedules in batches for efficiency.
+- **Get-AdministrativeUnit:** Internal function for resolving administrative unit names.
+- **Invoke-GraphBatch / Invoke-GraphPaged:** Internal utilities for Graph API calls.
+
+## Contributing
+
+Contributions are welcome! Please submit issues and pull requests on GitHub.
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
