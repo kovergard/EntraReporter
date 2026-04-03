@@ -24,10 +24,12 @@
 
 	.EXAMPLE
 	Get-EntraIdLevel
+
 	Returns the license level for the tenant.
 
 	.EXAMPLE
 	Get-EntraIdLevel -IncludeDetails
+	
 	Returns the license level along with detailed unit and SKU information.
 
 	.NOTES

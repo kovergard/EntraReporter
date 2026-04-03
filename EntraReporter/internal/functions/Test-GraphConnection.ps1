@@ -2,9 +2,11 @@
     .SYNOPSIS
     Test Microsoft Graph connection
     .DESCRIPTION
-    Verifies that the Microsoft.Graph.Authentication module is installed and that the session is connected to Microsoft Graph. 
+    Verifies that the Microsoft.Graph.Authentication module is installed and that the session is connected to Microsoft Graph.
     .EXAMPLE
     Test-GraphConnection
+
+	Returns true if connected to Graph, false otherwise. Used by EntraReporter internal routines to check Graph connectivity before making API calls.
 #>
 function Test-GraphConnection {
 	[CmdletBinding()]

@@ -84,12 +84,6 @@ P1SkuPartNumbers: {AAD_PREMIUM}
 P2SkuPartNumbers: {AAD_PREMIUM_P2}
 ```
 
-### Other Functions
-
-- **Get-EntraIdGroupScheduleBatch:** Retrieves group membership schedules in batches for efficiency.
-- **Get-AdministrativeUnit:** Internal function for resolving administrative unit names.
-- **Invoke-GraphBatch / Invoke-GraphPaged:** Internal utilities for Graph API calls.
-
 ## Contributing
 
 Contributions are welcome! Please submit issues and pull requests on GitHub.
