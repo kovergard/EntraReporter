@@ -19,6 +19,7 @@
 
 	.EXAMPLE
 	Get-EntraIdGroupScheduleBatch -GroupId @('group-id-1', 'group-id-2') -State 'Assigned'
+	
 	Retrieves active membership assignment schedules for the specified groups.
 
 	.NOTES
@@ -31,13 +32,13 @@ function Get-EntraIdGroupScheduleBatch {
 		# Array of Azure AD group IDs to fetch schedules for
 		[Parameter(Mandatory = $true)]
 		[string[]]
-		$GroupId,  
+		$GroupId,
 
 		# Type of schedule: 'Assigned' for active, 'Eligible' for eligible memberships
 		[Parameter(Mandatory = $true)]
 		[ValidateSet('Assigned', 'Eligible')]
 		[string]
-		$State     
+		$State
 	)
 
 	# Select the appropriate Graph API endpoint based on the requested state
@@ -51,7 +52,7 @@ function Get-EntraIdGroupScheduleBatch {
 			$urlTemplate = "/identityGovernance/privilegedAccess/group/eligibilitySchedules?`$filter=groupId eq '{Id}'&`$expand=principal"
 		}
 	}
-	
+
 	# Split the GroupId array into chunks of 20 for batch processing (Graph API batch limit optimization)
 	$chunks = Split-ArrayIntoChunks -InputObject $GroupId -ChunkSize 20
 

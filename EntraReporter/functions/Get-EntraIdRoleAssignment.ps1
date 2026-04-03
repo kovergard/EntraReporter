@@ -10,10 +10,12 @@
 
 	.EXAMPLE
 	Get-EntraIdRoleAssignment
+	
 	Retrieves all role assignments and eligibilities in the connected tenant (requires Entra P2).
 
 	.EXAMPLE
 	Get-EntraIdRoleAssignment -RoleName 'Global Administrator'
+
 	Retrieves assignments and eligibilities for the Global Administrator role only.
 
 	.NOTES
@@ -31,7 +33,7 @@ function Get-EntraIdRoleAssignment {
 		$RoleName
 	)
 
-	#region Internal functions 
+	#region Internal functions
 
 	# Resolve-AssignmentWindow: compute the effective assignment window from principal and user time windows
 	function Resolve-AssignmentWindow {
@@ -110,7 +112,7 @@ function Get-EntraIdRoleAssignment {
 			'Eligible'
 		}
 
-		# Emit a single entry for the combination of principal and user with the resolved effective assignment window and state. 
+		# Emit a single entry for the combination of principal and user with the resolved effective assignment window and state.
 		[PSCustomObject]@{
 			PSTypeName           = 'EntraReporter.RoleAssignment'
 			RoleId               = $RoleId
@@ -144,29 +146,29 @@ function Get-EntraIdRoleAssignment {
 			# Graph schedule object for group role assignment/eligibility
 			[Parameter(Mandatory = $true)]
 			[psobject]
-			$Schedule,   
+			$Schedule,
 
 			# Group state context being processed
 			[Parameter(Mandatory = $true)]
 			[ValidateSet('Assigned', 'Eligible')]
 			[string]
-			$GroupState, 
+			$GroupState,
 
 			# Resulting user-level state for group members
 			[Parameter(Mandatory = $true)]
 			[ValidateSet('Assigned', 'Eligible')]
 			[string]
-			$UserState  
+			$UserState
 		)
 
 		$principal = $Schedule.principal
 
 		# Choose group schedule entries based on whether we are resolving assigned or eligible members
 		if ($UserState -eq 'Assigned') {
-			$scheduleEntries = $script:groupAssignmentSchedules | Where-Object { $_.groupId -eq $principal.id } 
+			$scheduleEntries = $script:groupAssignmentSchedules | Where-Object { $_.groupId -eq $principal.id }
 		}
 		else {
-			$scheduleEntries = $script:groupEligibilitySchedules | Where-Object { $_.groupId -eq $principal.id } 
+			$scheduleEntries = $script:groupEligibilitySchedules | Where-Object { $_.groupId -eq $principal.id }
 		}
 
 		foreach ($scheduleEntry in $scheduleEntries ) {
@@ -209,13 +211,13 @@ function Get-EntraIdRoleAssignment {
 			# The Graph role schedule to resolve into output entries
 			[Parameter(Mandatory = $true)]
 			[psobject]
-			$Schedule, 
+			$Schedule,
 
 			# The schedule state to apply for this resolution pass
 			[Parameter(Mandatory = $true)]
 			[ValidateSet('Assigned', 'Eligible')]
 			[string]
-			$State     
+			$State
 		)
 
 		# Resolve principal to allow handling of different principal types
@@ -281,7 +283,7 @@ function Get-EntraIdRoleAssignment {
 	#region MAIN
 
 	# Always stop on errors to avoid emitting incomplete data. Errors should be handled at the command level to allow for more granular error handling (e.g. skipping individual entries that fail to resolve rather than failing the entire command).
-	$ErrorActionPreference = 'Stop'     
+	$ErrorActionPreference = 'Stop'
 
 	if (!(Test-GraphConnection)) {
 		throw 'No active connection to Microsoft Graph. Run Connect-MgGraph to sign in and then retry.'
@@ -298,7 +300,7 @@ function Get-EntraIdRoleAssignment {
 
 	# Fetch all role schedules, assigned and eligible.
 	Write-Progress -Activity $activityName -Status 'Fetching assigned role schedules' -PercentComplete 20
-	$roleAssignmentSchedules = Invoke-MgGraphRequest -Method GET -Uri "v1.0/roleManagement/directory/roleAssignmentSchedules?`$filter=assignmentType eq 'Assigned'&`$expand=principal,roleDefinition" -Verbose:$false | Select-Object -ExpandProperty value 
+	$roleAssignmentSchedules = Invoke-MgGraphRequest -Method GET -Uri "v1.0/roleManagement/directory/roleAssignmentSchedules?`$filter=assignmentType eq 'Assigned'&`$expand=principal,roleDefinition" -Verbose:$false | Select-Object -ExpandProperty value
 	Write-Progress -Activity $activityName -Status 'Fetching eligible role schedules' -PercentComplete 40
 	$roleEligibilitySchedules = Invoke-MgGraphRequest -Method GET -Uri "v1.0/roleManagement/directory/roleEligibilitySchedules?`$expand=principal,roleDefinition" -Verbose:$false | Select-Object -ExpandProperty value
 
@@ -308,7 +310,7 @@ function Get-EntraIdRoleAssignment {
 		$roleEligibilitySchedules = $roleEligibilitySchedules | Where-Object { $_.roleDefinition.displayName -in $RoleName }
 	}
 
-	# If any scopes are used in the role schedules (i.e. scope is not just the entire directory), fetch information about the scopes to allow for better reporting (e.g. resolving administrative unit names). 
+	# If any scopes are used in the role schedules (i.e. scope is not just the entire directory), fetch information about the scopes to allow for better reporting (e.g. resolving administrative unit names).
 	Write-Progress -Activity $activityName -Status 'Fetching scope information' -PercentComplete 60
 	$scopeIds = @()
 	$scopeIds += $roleAssignmentSchedules | Select-Object -ExpandProperty directoryScopeId
@@ -324,9 +326,9 @@ function Get-EntraIdRoleAssignment {
 
 	# Prefetch group schedules for all groups used groups
 	Write-Progress -Activity $activityName -Status 'Fetching assigned group schedules' -PercentComplete 65
-	$script:groupAssignmentSchedules = Get-EntraIdGroupScheduleBatch -GroupId $groupIds -State 'Assigned' 
+	$script:groupAssignmentSchedules = Get-EntraIdGroupScheduleBatch -GroupId $groupIds -State 'Assigned'
 	Write-Progress -Activity $activityName -Status 'Fetching eligible group schedules' -PercentComplete 80
-	$script:groupEligibilitySchedules = Get-EntraIdGroupScheduleBatch -GroupId $groupIds -State 'Eligible' 
+	$script:groupEligibilitySchedules = Get-EntraIdGroupScheduleBatch -GroupId $groupIds -State 'Eligible'
 
 
 	if (($groupAssignmentSchedules | Where-Object { $_.principal.'@odata.type' -eq '#microsoft.graph.group' }) -or ($groupEligibilitySchedules | Where-Object { $_.principal.'@odata.type' -eq '#microsoft.graph.group' })) {
