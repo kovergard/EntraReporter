@@ -21,8 +21,11 @@
 	Uses Invoke-MgGraphRequest to perform each request and expects standard Graph pagination (`@odata.nextLink`).
 #>
 function Invoke-GraphPaged {
+	[CmdletBinding()]
+	[OutputType([System.Object[]])]
 	param(
-		[Parameter(Mandatory)][string] $Uri
+		[Parameter(Mandatory)]
+		[string]$Uri
 	)
 	$items = @()
 	$next = $Uri

@@ -27,6 +27,7 @@
 #>
 function Get-EntraIdRoleAssignment {
 	[CmdletBinding()]
+	[OutputType([PSCustomObject[]])]
 	param(
 		[Parameter()]
 		[string[]]
@@ -82,6 +83,7 @@ function Get-EntraIdRoleAssignment {
 
 	# New-RoleAssignmentEntry: build and normalize a role assignment output record
 	function New-RoleAssignmentEntry {
+		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Doesnt really change state, just normalizes output')]
 		[CmdletBinding()]
 		param(
 			[Parameter(Mandatory)] [string]$RoleId,              # Role definition ID

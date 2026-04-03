@@ -10,6 +10,7 @@
 #>
 function Test-GraphConnection {
 	[CmdletBinding()]
+	[OutputType([System.Boolean])]
 	param ()
 
 	# Check if Graph module is installed
