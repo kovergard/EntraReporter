@@ -28,6 +28,7 @@
 
 #>
 function Get-EntraIdGroupScheduleBatch {
+	[CmdletBinding()]
 	param(
 		# Array of Azure AD group IDs to fetch schedules for
 		[Parameter(Mandatory = $true)]
@@ -54,7 +55,7 @@ function Get-EntraIdGroupScheduleBatch {
 	}
 
 	# Split the GroupId array into chunks of 20 for batch processing (Graph API batch limit optimization)
-	$chunks = Split-ArrayIntoChunks -InputObject $GroupId -ChunkSize 20
+	$chunks = Split-ArrayIntoChunk -InputObject $GroupId -ChunkSize 20
 
 	# Process each chunk through the Graph batch API and collect all responses
 	$allResponses = foreach ($chunk in $chunks) {
