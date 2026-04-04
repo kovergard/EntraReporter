@@ -54,7 +54,7 @@ Returns a collection of PSCustomObjects with properties including RoleId, RoleNa
    ![image](Images/Get-EntraIdRoleAssignment-Format-List.png)
 
 **Notes:**  
-Requires Entra P2 license level. Ensure you have connected to Microsoft Graph with appropriate scopes (e.g., `Connect-MgGraph -Scopes 'RoleEligibilitySchedule.Read.Directory','PrivilegedEligibilitySchedule.Read.AzureADGroup', 'PrivilegedAssignmentSchedule.Read.AzureADGroup'`).
+Requires Entra P2 license level. Ensure you have connected to Microsoft Graph with appropriate scopes (e.g., `Connect-MgGraph -Scopes 'RoleEligibilitySchedule.Read.Directory','RoleAssignmentSchedule.Read.Directory', 'PrivilegedEligibilitySchedule.Read.AzureADGroup', 'PrivilegedAssignmentSchedule.Read.AzureADGroup', 'LicenseAssignment.Read.All', 'AdministrativeUnit.Read.All', 'Application.Read.All'`).
 
 ### Get-EntraIdLevel
 
