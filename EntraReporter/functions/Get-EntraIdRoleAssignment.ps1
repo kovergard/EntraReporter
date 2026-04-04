@@ -224,59 +224,65 @@ function Get-EntraIdRoleAssignment {
 
 		# Resolve principal to allow handling of different principal types
 		# (user, servicePrincipal, group) and convert each to normalized rows.
-		$principal = $Schedule.principal
+		try {
+			$principal = $Schedule.principal
 
-		if ($principal.'@odata.type' -eq '#microsoft.graph.user') {
-			# User principal; create entry with user as both principal and assignee
-			$roleEntrySplat = @{
-				RoleId               = $Schedule.roleDefinitionId
-				RoleName             = $Schedule.roleDefinition.displayName
-				PrincipalId          = $Schedule.principal.id
-				PrincipalDisplayName = $Schedule.principal.displayName
-				AssignmentType       = 'User'
-				Scope                = $administrativeUnits | Where-Object { $_.directoryScopeId -eq $Schedule.directoryScopeId } | Select-Object -ExpandProperty displayName
-				PrincipalState       = $State
-				PrincipalStartTime   = if ($Schedule.scheduleInfo.expiration.endDateTime) { $Schedule.scheduleInfo.startDateTime } else { $null }
-				PrincipalEndTime     = if ($Schedule.scheduleInfo.expiration.endDateTime) { $Schedule.scheduleInfo.expiration.endDateTime } else { $null }
-				UserId               = $Schedule.principalId
-				UserDisplayName      = $Schedule.principal.displayName
-				UserPrincipalName    = $Schedule.principal.userPrincipalName
-				UserState            = $State
-				UserStartTime        = if ($Schedule.scheduleInfo.expiration.endDateTime) { $Schedule.scheduleInfo.startDateTime } else { $null }
-				UserEndTime          = if ($Schedule.scheduleInfo.expiration.endDateTime) { $Schedule.scheduleInfo.expiration.endDateTime } else { $null }
+			if ($principal.'@odata.type' -eq '#microsoft.graph.user') {
+				# User principal; create entry with user as both principal and assignee
+				$roleEntrySplat = @{
+					RoleId               = $Schedule.roleDefinitionId
+					RoleName             = $Schedule.roleDefinition.displayName
+					PrincipalId          = $Schedule.principal.id
+					PrincipalDisplayName = $Schedule.principal.displayName
+					AssignmentType       = 'User'
+					Scope                = $administrativeUnits | Where-Object { $_.directoryScopeId -eq $Schedule.directoryScopeId } | Select-Object -ExpandProperty displayName
+					PrincipalState       = $State
+					PrincipalStartTime   = if ($Schedule.scheduleInfo.expiration.endDateTime) { $Schedule.scheduleInfo.startDateTime } else { $null }
+					PrincipalEndTime     = if ($Schedule.scheduleInfo.expiration.endDateTime) { $Schedule.scheduleInfo.expiration.endDateTime } else { $null }
+					UserId               = $Schedule.principalId
+					UserDisplayName      = $Schedule.principal.displayName
+					UserPrincipalName    = $Schedule.principal.userPrincipalName
+					UserState            = $State
+					UserStartTime        = if ($Schedule.scheduleInfo.expiration.endDateTime) { $Schedule.scheduleInfo.startDateTime } else { $null }
+					UserEndTime          = if ($Schedule.scheduleInfo.expiration.endDateTime) { $Schedule.scheduleInfo.expiration.endDateTime } else { $null }
+				}
+				New-RoleAssignmentEntry @roleEntrySplat
 			}
-			New-RoleAssignmentEntry @roleEntrySplat
-		}
-		elseif ($principal.'@odata.type' -eq '#microsoft.graph.servicePrincipal') {
-			# Service principal; create entry with appId as principal name
-			$roleEntrySplat = @{
-				RoleId               = $Schedule.roleDefinitionId
-				RoleName             = $Schedule.roleDefinition.displayName
-				PrincipalId          = $Schedule.principal.id
-				PrincipalDisplayName = $Schedule.principal.displayName
-				AssignmentType       = 'Service principal'
-				Scope                = $administrativeUnits | Where-Object { $_.directoryScopeId -eq $Schedule.directoryScopeId } | Select-Object -ExpandProperty displayName
-				PrincipalState       = $State
-				PrincipalStartTime   = if ($Schedule.scheduleInfo.expiration.endDateTime) { $Schedule.scheduleInfo.startDateTime } else { $null }
-				PrincipalEndTime     = if ($Schedule.scheduleInfo.expiration.endDateTime) { $Schedule.scheduleInfo.expiration.endDateTime } else { $null }
-				UserId               = $Schedule.principalId
-				UserDisplayName      = $Schedule.principal.displayName
-				UserPrincipalName    = $Schedule.principal.appId
-				UserState            = $State
-				UserStartTime        = if ($Schedule.scheduleInfo.expiration.endDateTime) { $Schedule.scheduleInfo.startDateTime } else { $null }
-				UserEndTime          = if ($Schedule.scheduleInfo.expiration.endDateTime) { $Schedule.scheduleInfo.expiration.endDateTime } else { $null }
+			elseif ($principal.'@odata.type' -eq '#microsoft.graph.servicePrincipal') {
+				# Service principal; create entry with appId as principal name
+				$roleEntrySplat = @{
+					RoleId               = $Schedule.roleDefinitionId
+					RoleName             = $Schedule.roleDefinition.displayName
+					PrincipalId          = $Schedule.principal.id
+					PrincipalDisplayName = $Schedule.principal.displayName
+					AssignmentType       = 'Service principal'
+					Scope                = $administrativeUnits | Where-Object { $_.directoryScopeId -eq $Schedule.directoryScopeId } | Select-Object -ExpandProperty displayName
+					PrincipalState       = $State
+					PrincipalStartTime   = if ($Schedule.scheduleInfo.expiration.endDateTime) { $Schedule.scheduleInfo.startDateTime } else { $null }
+					PrincipalEndTime     = if ($Schedule.scheduleInfo.expiration.endDateTime) { $Schedule.scheduleInfo.expiration.endDateTime } else { $null }
+					UserId               = $Schedule.principalId
+					UserDisplayName      = $Schedule.principal.displayName
+					UserPrincipalName    = $Schedule.principal.appId
+					UserState            = $State
+					UserStartTime        = if ($Schedule.scheduleInfo.expiration.endDateTime) { $Schedule.scheduleInfo.startDateTime } else { $null }
+					UserEndTime          = if ($Schedule.scheduleInfo.expiration.endDateTime) { $Schedule.scheduleInfo.expiration.endDateTime } else { $null }
+				}
+				New-RoleAssignmentEntry @roleEntrySplat
 			}
-			New-RoleAssignmentEntry @roleEntrySplat
-		}
 
-		elseif ($principal.'@odata.type' -eq '#microsoft.graph.group') {
-			# Group principal; expand into per-member entries, handling both assigned and eligible
-			Resolve-RoleAssignedGroup -Schedule $Schedule -GroupState $State -UserState 'Assigned'
-			Resolve-RoleAssignedGroup -Schedule $Schedule -GroupState $State -UserState 'Eligible'
+			elseif ($principal.'@odata.type' -eq '#microsoft.graph.group') {
+				# Group principal; expand into per-member entries, handling both assigned and eligible
+				Resolve-RoleAssignedGroup -Schedule $Schedule -GroupState $State -UserState 'Assigned'
+				Resolve-RoleAssignedGroup -Schedule $Schedule -GroupState $State -UserState 'Eligible'
+			}
+			else {
+				Write-Warning "Principal with ID '$($principal.id)' is of type $($principal.'@odata.type'), which is currently not supported by the command. Skipping entry."
+				$Schedule | ConvertTo-Json -Depth 5 -Compress | Write-Verbose
+			}
 		}
-		else {
-			Write-Warning "Principal with ID '$($principal.id)' is of type $($principal.'@odata.type'), which is currently not supported by the command. Skipping entry."
-			$Schedule | ConvertTo-Json -Depth 5 | Write-Verbose
+		catch {
+			Write-Warning "An error occurred while processing principal with ID '$($principal.id)' for role assignment with role ID '$($Schedule.roleDefinitionId)'. Skipping entry. Error details: $_"
+			$Schedule | ConvertTo-Json -Depth 5 -Compress | Write-Verbose
 		}
 	}
 
@@ -314,10 +320,6 @@ function Get-EntraIdRoleAssignment {
 
 	# If any scopes are used in the role schedules (i.e. scope is not just the entire directory), fetch information about the scopes to allow for better reporting (e.g. resolving administrative unit names).
 	Write-Progress -Activity $activityName -Status 'Fetching scope information' -PercentComplete 60
-	$scopeIds = @()
-	$scopeIds += $roleAssignmentSchedules | Select-Object -ExpandProperty directoryScopeId
-	$scopeIds += $roleEligibilitySchedules | Select-Object -ExpandProperty directoryScopeId
-	$scopeIds = $scopeIds | Where-Object { $_.id -ne '/' } | Select-Object -Unique
 	$script:administrativeUnits = Get-AdministrativeUnit
 
 	# Extract unique group IDs from all role schedules for prefetching group schedule information in bulk to reduce number of API calls later on.
@@ -327,11 +329,16 @@ function Get-EntraIdRoleAssignment {
 	$groupIds = $groupIds | Select-Object -Unique
 
 	# Prefetch group schedules for all groups used groups
-	Write-Progress -Activity $activityName -Status 'Fetching assigned group schedules' -PercentComplete 65
-	$script:groupAssignmentSchedules = Get-EntraIdGroupScheduleBatch -GroupId $groupIds -State 'Assigned'
-	Write-Progress -Activity $activityName -Status 'Fetching eligible group schedules' -PercentComplete 80
-	$script:groupEligibilitySchedules = Get-EntraIdGroupScheduleBatch -GroupId $groupIds -State 'Eligible'
-
+	if ($groupIds.Count -gt 0) {
+		Write-Progress -Activity $activityName -Status 'Fetching assigned group schedules' -PercentComplete 65
+		$script:groupAssignmentSchedules = Get-EntraIdGroupScheduleBatch -GroupId $groupIds -State 'Assigned'
+		Write-Progress -Activity $activityName -Status 'Fetching eligible group schedules' -PercentComplete 80
+		$script:groupEligibilitySchedules = Get-EntraIdGroupScheduleBatch -GroupId $groupIds -State 'Eligible'
+	}
+	else {
+		$script:groupAssignmentSchedules = @()
+		$script:groupEligibilitySchedules = @()
+	}
 
 	if (($groupAssignmentSchedules | Where-Object { $_.principal.'@odata.type' -eq '#microsoft.graph.group' }) -or ($groupEligibilitySchedules | Where-Object { $_.principal.'@odata.type' -eq '#microsoft.graph.group' })) {
 		Write-Warning 'One or more role assignment uses nested groups, which is currently not supported by the command. This may lead to incomplete reporting.'
@@ -353,4 +360,4 @@ function Get-EntraIdRoleAssignment {
 
 	Write-Verbose "Total execution time: $($timer.Elapsed.TotalSeconds) seconds"
 }
-#endregion
+#endregion MAIN

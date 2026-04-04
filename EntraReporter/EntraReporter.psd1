@@ -4,7 +4,7 @@
 	RootModule        = 'EntraReporter.psm1'
 
 	# Version number of this module.
-	ModuleVersion     = '0.1.0'
+	ModuleVersion     = '0.2.0'
 
 	# Supported PSEditions
 	# CompatiblePSEditions = @()
@@ -43,7 +43,9 @@
 	# ProcessorArchitecture = ''
 
 	# Modules that must be imported into the global environment prior to importing this module
-	# RequiredModules = @()
+	RequiredModules   = @(
+		'Microsoft.Graph.Authentication'
+	)
 
 	# Assemblies that must be loaded prior to importing this module
 	# RequiredAssemblies = @()
@@ -92,7 +94,7 @@
 		PSData = @{
 
 			# Tags applied to this module. These help with module discovery in online galleries.
-			# Tags = @()
+			Tags         = 'Identity', 'Entra', 'EntraId', 'AzureAD', 'AAD', 'Reporting', 'Graph', 'MicrosoftGraph'
 
 			# A URL to the license for this module.
 			LicenseUri   = 'https://github.com/kovergard/EntraReporter/blob/main/LICENSE'
