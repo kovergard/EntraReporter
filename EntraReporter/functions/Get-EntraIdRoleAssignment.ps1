@@ -182,7 +182,7 @@ function Get-EntraIdRoleAssignment {
 					PrincipalId          = $Schedule.principal.id
 					PrincipalDisplayName = $Schedule.principal.displayName
 					AssignmentType       = 'Group'
-					Scope                = $administrativeUnits | Where-Object { $_.directoryScopeId -eq $Schedule.directoryScopeId } | Select-Object -ExpandProperty displayName
+					Scope                = ($administrativeUnits | Where-Object { $_.directoryScopeId -eq $Schedule.directoryScopeId }).displayName
 					PrincipalState       = $GroupState
 					PrincipalStartTime   = if ($Schedule.scheduleInfo.expiration.endDateTime) { $Schedule.scheduleInfo.startDateTime } else { $null }
 					PrincipalEndTime     = if ($Schedule.scheduleInfo.expiration.endDateTime) { $Schedule.scheduleInfo.expiration.endDateTime } else { $null }
@@ -235,7 +235,7 @@ function Get-EntraIdRoleAssignment {
 					PrincipalId          = $Schedule.principal.id
 					PrincipalDisplayName = $Schedule.principal.displayName
 					AssignmentType       = 'User'
-					Scope                = $administrativeUnits | Where-Object { $_.directoryScopeId -eq $Schedule.directoryScopeId } | Select-Object -ExpandProperty displayName
+					Scope                = ($administrativeUnits | Where-Object { $_.directoryScopeId -eq $Schedule.directoryScopeId }).displayName
 					PrincipalState       = $State
 					PrincipalStartTime   = if ($Schedule.scheduleInfo.expiration.endDateTime) { $Schedule.scheduleInfo.startDateTime } else { $null }
 					PrincipalEndTime     = if ($Schedule.scheduleInfo.expiration.endDateTime) { $Schedule.scheduleInfo.expiration.endDateTime } else { $null }
@@ -256,7 +256,7 @@ function Get-EntraIdRoleAssignment {
 					PrincipalId          = $Schedule.principal.id
 					PrincipalDisplayName = $Schedule.principal.displayName
 					AssignmentType       = 'Service principal'
-					Scope                = $administrativeUnits | Where-Object { $_.directoryScopeId -eq $Schedule.directoryScopeId } | Select-Object -ExpandProperty displayName
+					Scope                = ($administrativeUnits | Where-Object { $_.directoryScopeId -eq $Schedule.directoryScopeId }).displayName
 					PrincipalState       = $State
 					PrincipalStartTime   = if ($Schedule.scheduleInfo.expiration.endDateTime) { $Schedule.scheduleInfo.startDateTime } else { $null }
 					PrincipalEndTime     = if ($Schedule.scheduleInfo.expiration.endDateTime) { $Schedule.scheduleInfo.expiration.endDateTime } else { $null }
@@ -308,9 +308,9 @@ function Get-EntraIdRoleAssignment {
 
 	# Fetch all role schedules, assigned and eligible.
 	Write-Progress -Activity $activityName -Status 'Fetching assigned role schedules' -PercentComplete 20
-	$roleAssignmentSchedules = Invoke-MgGraphRequest -Method GET -Uri "v1.0/roleManagement/directory/roleAssignmentSchedules?`$filter=assignmentType eq 'Assigned'&`$expand=principal,roleDefinition" -Verbose:$false | Select-Object -ExpandProperty value
+	$roleAssignmentSchedules = (Invoke-MgGraphRequest -Method GET -Uri "v1.0/roleManagement/directory/roleAssignmentSchedules?`$filter=assignmentType eq 'Assigned'&`$expand=principal,roleDefinition" -Verbose:$false)['value']
 	Write-Progress -Activity $activityName -Status 'Fetching eligible role schedules' -PercentComplete 40
-	$roleEligibilitySchedules = Invoke-MgGraphRequest -Method GET -Uri "v1.0/roleManagement/directory/roleEligibilitySchedules?`$expand=principal,roleDefinition" -Verbose:$false | Select-Object -ExpandProperty value
+	$roleEligibilitySchedules = (Invoke-MgGraphRequest -Method GET -Uri "v1.0/roleManagement/directory/roleEligibilitySchedules?`$expand=principal,roleDefinition" -Verbose:$false)['value']
 
 	# If Rolename has been specified, filter out any assigments not in the specified role(s).
 	if ($RoleName) {
@@ -324,8 +324,8 @@ function Get-EntraIdRoleAssignment {
 
 	# Extract unique group IDs from all role schedules for prefetching group schedule information in bulk to reduce number of API calls later on.
 	$groupIds = @()
-	$groupIds += $roleAssignmentSchedules | Select-Object -ExpandProperty principal | Where-Object { $_.'@odata.type' -eq '#microsoft.graph.group' } | Select-Object -ExpandProperty Id
-	$groupIds += $roleEligibilitySchedules | Select-Object -ExpandProperty principal | Where-Object { $_.'@odata.type' -eq '#microsoft.graph.group' } | Select-Object -ExpandProperty Id
+	$groupIds += ($roleAssignmentSchedules.principal | Where-Object { $_.'@odata.type' -eq '#microsoft.graph.group' }).Id
+	$groupIds += ($roleEligibilitySchedules.principal | Where-Object { $_.'@odata.type' -eq '#microsoft.graph.group' }).Id
 	$groupIds = $groupIds | Select-Object -Unique
 
 	# Prefetch group schedules for all groups used groups
