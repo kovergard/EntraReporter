@@ -4,7 +4,7 @@
 	RootModule        = 'EntraReporter.psm1'
 
 	# Version number of this module.
-	ModuleVersion     = '0.2.0'
+	ModuleVersion     = '0.2.1'
 
 	# Supported PSEditions
 	# CompatiblePSEditions = @()
@@ -106,7 +106,7 @@
 			# IconUri = ''
 
 			# ReleaseNotes of this module
-			ReleaseNotes = 'https://github.com/kovergard/EntraReporter/blob/main/changelog.md'
+			ReleaseNotes = 'https://github.com/kovergard/EntraReporter/blob/main/CHANGELOG.md'
 
 			# Prerelease string of this module
 			# Prerelease = ''
