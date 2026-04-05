@@ -28,7 +28,7 @@ function Get-AdministrativeUnit {
 	$results = @()
 
 	# Get all administrative units from directory to avoid making multiple calls
-	$allAdministrativeUnits = Invoke-MgGraphRequest -Method GET -Uri 'v1.0/directory/administrativeUnits' -Verbose:$false | Select-Object -ExpandProperty value
+	$allAdministrativeUnits = (Invoke-MgGraphRequest -Method GET -Uri 'v1.0/directory/administrativeUnits' -Verbose:$false)['value']
 	foreach ($adminUnit in $allAdministrativeUnits) {
 		$results += [pscustomobject] @{
 			directoryScopeId = "/administrativeUnits/$($adminUnit.id)"
