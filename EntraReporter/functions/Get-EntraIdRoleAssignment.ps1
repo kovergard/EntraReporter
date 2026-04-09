@@ -34,6 +34,10 @@ function Get-EntraIdRoleAssignment {
 		$RoleName
 	)
 
+	# TODO: Add switch to include expired assigments
+
+	# TODO: Add switch to include accounts with sign-in disabled
+
 	#region Internal functions
 
 	# Resolve-AssignmentWindow: compute the effective assignment window from principal and user time windows
@@ -353,6 +357,8 @@ function Get-EntraIdRoleAssignment {
 	$resolvedGroupSchedules += foreach ($schedule in $roleEligibilitySchedules) {
 		Resolve-EntraIDRoleSchedule -Schedule $schedule -State 'Eligible'
 	}
+
+	# BUG: Eligible assignments which has been activated generates two entries, one showing eligible and one showing assigned. This is because the principal schedule and user schedule for the assignment are both eligible, so when we resolve the effective state, we get eligible for both entries. We need to add a check to see if there is an active assignment for the same principal and user, and if so, we should skip the eligible entry since it is not actually eligible but rather already active. This will require checking the role assignment schedules for an assigned entry with the same principal and user that overlaps in time with the eligible entry, which may be a bit complex but should be doable. In the meantime, we will emit both entries to avoid missing any data, but this may lead to some confusion in the output since it will show both eligible and assigned entries for active assignments.
 
 	Write-Progress -Activity $activityName -Completed
 
