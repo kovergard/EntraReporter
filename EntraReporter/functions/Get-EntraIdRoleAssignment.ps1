@@ -34,9 +34,9 @@ function Get-EntraIdRoleAssignment {
 		$RoleName
 	)
 
-	# TODO: Add switch to include expired assigments
+	# TODO: Add switch to include expired assigments. These are not included by default and may require additional API calls to fetch historical assignment data, so we will implement this as an optional switch to avoid unnecessary API calls for users who do not need this information.
 
-	# TODO: Add switch to include accounts with sign-in disabled
+	# TODO: Consider options for adding a property showing whether accounts have sign-in disabled, stop showing them default, and add switch to include them. This will require fetching additional information about the principal (user/service principal) for each assignment to check the sign-in status, which may lead to a significant increase in API calls.
 
 	#region Internal functions
 
@@ -178,6 +178,10 @@ function Get-EntraIdRoleAssignment {
 		}
 
 		foreach ($scheduleEntry in $scheduleEntries ) {
+			# Ignore eligble entries that has been activated to avoid emitting duplicate entries for the same user that would show up as both eligible and assigned.
+			if ($scheduleEntry.assignmentType -eq 'activated') {
+				continue
+			}
 			if ($scheduleEntry.principal.'@odata.type' -eq '#microsoft.graph.user') {
 				# User member found; create normalized assignment entry
 				$roleEntrySplat = @{
@@ -357,8 +361,6 @@ function Get-EntraIdRoleAssignment {
 	$resolvedGroupSchedules += foreach ($schedule in $roleEligibilitySchedules) {
 		Resolve-EntraIDRoleSchedule -Schedule $schedule -State 'Eligible'
 	}
-
-	# BUG: Eligible assignments which has been activated generates two entries, one showing eligible and one showing assigned. This is because the principal schedule and user schedule for the assignment are both eligible, so when we resolve the effective state, we get eligible for both entries. We need to add a check to see if there is an active assignment for the same principal and user, and if so, we should skip the eligible entry since it is not actually eligible but rather already active. This will require checking the role assignment schedules for an assigned entry with the same principal and user that overlaps in time with the eligible entry, which may be a bit complex but should be doable. In the meantime, we will emit both entries to avoid missing any data, but this may lead to some confusion in the output since it will show both eligible and assigned entries for active assignments.
 
 	Write-Progress -Activity $activityName -Completed
 
