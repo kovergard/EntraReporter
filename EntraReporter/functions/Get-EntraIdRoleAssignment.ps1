@@ -34,6 +34,10 @@ function Get-EntraIdRoleAssignment {
 		$RoleName
 	)
 
+	# TODO: Add switch to include expired assigments. These are not included by default and may require additional API calls to fetch historical assignment data, so we will implement this as an optional switch to avoid unnecessary API calls for users who do not need this information.
+
+	# TODO: Consider options for adding a property showing whether accounts have sign-in disabled, stop showing them default, and add switch to include them. This will require fetching additional information about the principal (user/service principal) for each assignment to check the sign-in status, which may lead to a significant increase in API calls.
+
 	#region Internal functions
 
 	# Resolve-AssignmentWindow: compute the effective assignment window from principal and user time windows
@@ -174,6 +178,10 @@ function Get-EntraIdRoleAssignment {
 		}
 
 		foreach ($scheduleEntry in $scheduleEntries ) {
+			# Ignore eligble entries that has been activated to avoid emitting duplicate entries for the same user that would show up as both eligible and assigned.
+			if ($scheduleEntry.assignmentType -eq 'activated') {
+				continue
+			}
 			if ($scheduleEntry.principal.'@odata.type' -eq '#microsoft.graph.user') {
 				# User member found; create normalized assignment entry
 				$roleEntrySplat = @{
